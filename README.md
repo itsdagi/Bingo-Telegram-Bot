@@ -98,4 +98,13 @@ VITE_TELEGRAM_BOT_USERNAME=
 Set `DEV_AUTH_ENABLED=true` as an Edge Function secret. The frontend will show a
 dev login field when Telegram is not detected. This is **disabled by default** and
 must never be enabled in production.
-# Bingo-Telegram-Bot
+
+## Deploying to Vercel
+
+The repo root is a monorepo (the app lives in `frontend/`). A root `vercel.json`
+is included so Vercel builds `frontend/` and serves `frontend/dist`.
+
+1. Push this repo to GitHub and import it in Vercel.
+2. In Vercel → **Project Settings → Environment Variables**, add the three public vars:
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_TELEGRAM_BOT_USERNAME`.
+3. Deploy, then point BotFather's Mini App URL at the `*.vercel.app` URL.
