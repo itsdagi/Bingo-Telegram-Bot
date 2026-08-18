@@ -34,7 +34,7 @@ export function Game({ gameId }: GamePageProps) {
     if (!user) return;
     setLoading(true);
 
-    const [{ data: g }, { data: c }, { data: p }, { data: d }, { data: r }] = await Promise.all([
+    const [{ data: g, error: gErr }, { data: c }, { data: p }, { data: d }, { data: r }] = await Promise.all([
       supabase.from('games').select('*').eq('id', gameId).single(),
       supabase.from('bingo_cards').select('*').eq('game_id', gameId).eq('user_id', user.id).single(),
       supabase.from('game_players').select('*').eq('game_id', gameId).order('joined_at', { ascending: true }),
@@ -43,7 +43,8 @@ export function Game({ gameId }: GamePageProps) {
     ]);
 
     if (!g) {
-      setLoadError('Game not found');
+      // Surface the real reason (e.g. 401 JWT / RLS) instead of a generic message.
+      setLoadError(gErr ? `Could not load game: ${gErr.message}` : 'Game not found');
       setLoading(false);
       return;
     }
