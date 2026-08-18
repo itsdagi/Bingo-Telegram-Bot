@@ -118,8 +118,15 @@ export function Game({ gameId }: GamePageProps) {
   }, [gameId, user, load, refreshUser]);
 
   // Fallback ticker keeps the game moving even if pg_cron is unavailable.
+  // Runs while WAITING too, so a solo public game can auto-start server-side.
   useEffect(() => {
-    if (game?.status !== 'ACTIVE' && game?.status !== 'STARTING') return;
+    if (
+      game?.status !== 'ACTIVE' &&
+      game?.status !== 'STARTING' &&
+      game?.status !== 'WAITING'
+    ) {
+      return;
+    }
     const id = setInterval(() => void tick(), 3500);
     return () => clearInterval(id);
   }, [game?.status]);
