@@ -35,12 +35,16 @@ async function call<T>(path: string, body?: unknown, auth = true): Promise<ApiRe
   return { data: json as T };
 }
 
-export async function authenticate(): Promise<ApiResult<User>> {
+export async function authenticate(phone?: string): Promise<ApiResult<User>> {
   const initData = getAuthInitData();
   if (!initData) {
     return { error: 'No Telegram session available' };
   }
-  const res = await call<{ token: string; user: User }>('telegram-auth', { initData }, false);
+  const res = await call<{ token: string; user: User }>(
+    'telegram-auth',
+    { initData, phone: phone ?? undefined },
+    false,
+  );
   if (res.data) {
     setAuthToken(res.data.token);
     return { data: res.data.user };
@@ -48,8 +52,11 @@ export async function authenticate(): Promise<ApiResult<User>> {
   return { error: res.error };
 }
 
-export function quickPlay(): Promise<ApiResult<{ game: Game; card: number[] }>> {
-  return call<{ game: Game; card: number[] }>('quick-play');
+/** Join/create a Quick Play game, or (with a gameId) repair/fetch a card. */
+export function quickPlay(
+  gameId?: string,
+): Promise<ApiResult<{ game: Game; card: number[] }>> {
+  return call<{ game: Game; card: number[] }>('quick-play', gameId ? { gameId } : undefined);
 }
 
 export function createRoom(opts: {

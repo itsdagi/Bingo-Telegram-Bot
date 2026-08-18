@@ -48,18 +48,7 @@ export function Home() {
         disabled={busy}
         className="w-full rounded-2xl bg-tg-button px-4 py-5 text-lg font-extrabold text-tg-button-text shadow-sm transition active:scale-[0.98] disabled:opacity-60"
       >
-        {busy ? 'JOINING…' : 'QUICK PLAY'}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => {
-          haptic('light');
-          navigate({ name: 'rooms' });
-        }}
-        className="w-full rounded-2xl bg-tg-secondary px-4 py-5 text-lg font-extrabold text-tg-text shadow-sm transition active:scale-[0.98]"
-      >
-        CREATE ROOM
+        {busy ? 'FINDING A GAME…' : '🎱 PLAY BINGO'}
       </button>
 
       <div className="grid w-full grid-cols-2 gap-3">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
-import { claimBingo, startGame, tick } from '../../lib/api';
+import { claimBingo, startGame, tick, quickPlay } from '../../lib/api';
 import { haptic, hapticSuccess, getWebApp } from '../../lib/telegram';
 import { formatBirr, letterForNumber } from '../../game/bingo';
 import { detectBingo } from '../../game/patterns';
@@ -48,8 +48,19 @@ export function Game({ gameId }: GamePageProps) {
       return;
     }
 
+    let cardNumbers = (c as { numbers: number[] } | null)?.numbers ?? null;
+
+    // The card is authoritative on the backend. If it is missing locally, ask
+    // quick-play (idempotent) to repair/fetch it for this specific game.
+    if (!cardNumbers) {
+      const repaired = await quickPlay(gameId);
+      if (repaired.data && repaired.data.game.id === gameId) {
+        cardNumbers = repaired.data.card;
+      }
+    }
+
     setGame(g as Game);
-    setCard((c as { numbers: number[] } | null)?.numbers ?? null);
+    setCard(cardNumbers);
     setPlayers((p as GamePlayer[] | null) ?? []);
     setDrawn((d as DrawnNumber[] | null) ?? []);
     setResult((r as GameResult | null) ?? null);
@@ -316,7 +327,16 @@ export function Game({ gameId }: GamePageProps) {
           winningCells={result?.winning_numbers.map((n) => card.indexOf(n)) ?? undefined}
         />
       ) : (
-        <div className="text-tg-hint">Loading your card…</div>
+        <div className="flex flex-col items-center gap-3 text-tg-hint">
+          <span>Finding your card…</span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-xl bg-tg-secondary px-5 py-2 text-sm font-bold text-tg-text active:scale-95"
+          >
+            Retry
+          </button>
+        </div>
       )}
 
       <div className="w-full">

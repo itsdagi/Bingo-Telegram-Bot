@@ -115,3 +115,31 @@ export function getAuthInitData(): string {
   const devId = getDevUserId();
   return devId ? `dev:${devId}` : '';
 }
+
+/**
+ * Normalize a user-entered phone number to E.164. The UI prefills "+251"
+ * (Ethiopia) but accepts any international format the backend can validate.
+ */
+export function normalizePhone(input: string): string {
+  let p = (input ?? '').replace(/[^0-9+]/g, '');
+
+  if (p.startsWith('+')) {
+    p = p.replace(/[^0-9]/g, (m) => (m === '+' ? '+' : ''));
+    p = '+' + p.slice(1).replace(/[^0-9]/g, '');
+    return p;
+  }
+
+  const digits = p.replace(/[^0-9]/g, '');
+
+  if (digits.startsWith('251') && digits.length >= 12) {
+    return '+' + digits;
+  }
+  if (digits.startsWith('0')) {
+    return '+251' + digits.replace(/^0+/, '');
+  }
+  if (digits.length <= 10) {
+    // Assume an Ethiopian local number (9 digits, no leading zero).
+    return '+251' + digits;
+  }
+  return '+' + digits;
+}

@@ -14,6 +14,23 @@ Deno.serve(async (req) => {
     if (!userId) return jsonResponse({ error: 'Unauthorized' }, 401);
 
     const supabase = createAdminClient();
+    const body = await req.json().catch(() => ({}));
+
+    // Repair path: the client asks for its card in a game it already belongs
+    // to (e.g. the card row went missing). No join/create happens here.
+    if (typeof body.gameId === 'string' && body.gameId.trim() !== '') {
+      const gameId = body.gameId.trim();
+
+      const [{ data: game }, cardRes] = await Promise.all([
+        supabase.from('games').select('*').eq('id', gameId).single(),
+        supabase.rpc('ensure_bingo_card', { p_game_id: gameId, p_user_id: userId }),
+      ]);
+
+      if (cardRes.error) return jsonResponse({ error: cardRes.error.message }, 400);
+      if (!game) return jsonResponse({ error: 'Game not found' }, 404);
+
+      return jsonResponse({ game, card: cardRes.data as number[] });
+    }
 
     // The SQL function is idempotent; retry a couple of times to survive a
     // race where a found game fills up between lookup and join.

@@ -17,6 +17,25 @@ Telegram → Telegram Mini App → React + Vite → Vercel → Supabase
 - **pg_cron + SQL** draw numbers server-side every few seconds.
 - **Realtime** broadcasts game events to every player simultaneously.
 
+## Authentication flow
+
+```
+Telegram Bot
+    ↓
+Open Mini App
+    ↓
+Phone Authentication  (verified Telegram identity + phone, linked in `users`)
+    ↓
+Verify / Create User (idempotent — no duplicate accounts)
+    ↓
+Bingo Home
+```
+
+- The Mini App always runs inside Telegram, so `window.Telegram.WebApp.initData` is present and its HMAC is verified server-side with `TELEGRAM_BOT_TOKEN`.
+- The user then enters their phone number. The phone is stored in `users.phone` (unique) and linked to the same account as the Telegram identity.
+- Logging in again with the same phone **or** the same Telegram identity resolves to the same account — no duplicates.
+- `dev:<id>` authentication only works when the `DEV_AUTH_ENABLED=true` secret is set. It is disabled by default and must never be enabled in production.
+
 ## Project structure
 
 ```
@@ -35,31 +54,38 @@ bingo/
 
 1. Create a project at https://supabase.com
 2. Enable the `pg_cron` extension (Database → Extensions) — the game loop depends on it.
-3. Run the migrations in `supabase/migrations/` (in order).
-4. In Edge Functions secrets, add:
+3. Run the migrations in `supabase/migrations/` in order:
+   - `0001_init.sql`
+   - `0002_cron.sql`
+   - `0003_phone_auth_and_fixes.sql`
+4. In Edge Function secrets, add:
 
 ```
 TELEGRAM_BOT_TOKEN=<your bot token from BotFather>
 JWT_SECRET=<JWT secret: Settings → API → JWT Settings>
+MINI_APP_URL=https://bingo-telegram-bot.vercel.app
+DEV_AUTH_ENABLED=false
 ```
 
-> `JWT_SECRET` is used to sign short-lived auth tokens for your users.
-> (`SUPABASE_JWT_SECRET` is also accepted.) Never put it in the frontend.
+> `JWT_SECRET` is used to sign short-lived auth tokens for your users
+> (`SUPABASE_JWT_SECRET` is also accepted). Never put it in the frontend.
+> `TELEGRAM_BOT_TOKEN` and `MINI_APP_URL` are server secrets too.
 
 5. Deploy the Edge Functions:
 
 ```bash
 supabase functions deploy telegram-auth --no-verify-jwt
-supabase functions deploy create-room --no-verify-jwt
-supabase functions deploy join-room --no-verify-jwt
 supabase functions deploy quick-play --no-verify-jwt
+supabase functions deploy join-room --no-verify-jwt
 supabase functions deploy start-game --no-verify-jwt
 supabase functions deploy claim-bingo --no-verify-jwt
 supabase functions deploy tick --no-verify-jwt
+supabase functions deploy telegram-bot --no-verify-jwt
 ```
 
 > Edge Functions use `--no-verify-jwt` because they verify Telegram `initData`
-> themselves and sign their own tokens.
+> themselves and sign their own tokens. `create-room` is deployed but disabled:
+> normal players can only **join** games, not create them.
 
 ### 2. Frontend
 
@@ -80,15 +106,34 @@ VITE_TELEGRAM_BOT_USERNAME=
 
 ### 3. Telegram bot
 
-1. Create a bot with [BotFather](https://t.me/BotFather).
-2. Run `/newapp` and set the Mini App URL to your Vercel URL (`https://bingo.vercel.app`).
-3. Open the bot in Telegram and press the app button.
+1. Create a bot with [BotFather](https://t.me/BotFather) (`@Habeshawibingobot` already exists — reuse it).
+2. Set the bot description/about:
+
+```
+/setdescription — Join live multiplayer Bingo games inside Telegram. Press PLAY BINGO to start!
+/setabouttext  — 🎱 Bingo — play live multiplayer Bingo with virtual Birr.
+```
+
+3. Point the webhook at the deployed `telegram-bot` function:
+
+```bash
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<PROJECT_REF>.supabase.co/functions/v1/telegram-bot"
+```
+
+4. In BotFather, set the Mini App button so pressing it opens the app:
+
+```
+/newapp   (or edit the existing app for the bot)
+   Web App URL: https://bingo-telegram-bot.vercel.app/
+```
+
+The bot now replies to `/start` (or any message) with a welcome message and a
+**🎱 PLAY BINGO** button that launches the Mini App.
 
 ## Game rules
 
 - Every new user receives **1,000 Birr** (one-time `WELCOME_BONUS`).
 - Quick Play: entry **10 Birr**, 2–50 players, auto-starts at 2 players.
-- Rooms: creator picks entry (5/10/25/50 Birr), 2–50 players, creator starts.
 - Winner takes the full pot (`entry_fee × players`).
 - Bingo card: 5×5, columns B(1–15) I(16–30) N(31–45) G(46–60) O(61–75), center FREE.
 - Supported patterns: horizontal, vertical, main diagonal, anti-diagonal.

@@ -3,13 +3,13 @@ import { useApp, type Route } from './context/AppContext';
 import { getWebApp, haptic } from './lib/telegram';
 import { joinRoom } from './lib/api';
 import { Home } from './pages/Home/Home';
-import { Rooms } from './pages/Rooms/Rooms';
+import { Auth } from './pages/Auth/Auth';
 import { Game } from './pages/Game/Game';
 import { History } from './pages/History/History';
 import { Profile } from './pages/Profile/Profile';
 
 export default function App() {
-  const { user, loading, error, needDevLogin, route, navigate, devLogin } = useApp();
+  const { user, loading, error, authScreen, route, navigate, loginWithPhone, devLogin } = useApp();
 
   // Deep link: t.me/Bot?startapp=room_CODE → auto-join.
   const handledDeepLink = useRef(false);
@@ -25,8 +25,9 @@ export default function App() {
     }
   }, [user, navigate]);
 
-  if (loading) return <Splash />;
-  if (needDevLogin) return <DevLogin onLogin={devLogin} />;
+  if (loading && authScreen === 'none') return <Splash />;
+  if (authScreen === 'dev') return <DevLogin onLogin={devLogin} error={error} />;
+  if (authScreen === 'phone') return <Auth onLogin={loginWithPhone} error={error} />;
   if (error || !user) return <ErrorScreen message={error ?? 'Not signed in'} />;
 
   if (route.name === 'game') {
@@ -45,8 +46,6 @@ function renderPage(route: Route) {
   switch (route.name) {
     case 'home':
       return <Home />;
-    case 'rooms':
-      return <Rooms />;
     case 'history':
       return <History />;
     case 'profile':
@@ -79,7 +78,7 @@ function ErrorScreen({ message }: { message: string }) {
   );
 }
 
-function DevLogin({ onLogin }: { onLogin: (id: string) => Promise<void> }) {
+function DevLogin({ onLogin, error }: { onLogin: (id: string) => Promise<void>; error?: string | null }) {
   const [id, setId] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -94,6 +93,11 @@ function DevLogin({ onLogin }: { onLogin: (id: string) => Promise<void> }) {
         placeholder="123456789"
         className="w-full max-w-xs rounded-xl bg-tg-secondary px-4 py-3 text-center text-lg font-bold text-tg-text outline-none"
       />
+      {error && (
+        <div className="w-full max-w-xs rounded-xl bg-tg-danger/10 px-4 py-2 text-center text-sm text-tg-danger">
+          {error}
+        </div>
+      )}
       <button
         type="button"
         disabled={busy || !id}
@@ -111,15 +115,14 @@ function DevLogin({ onLogin }: { onLogin: (id: string) => Promise<void> }) {
 }
 
 function BottomNav({ current, navigate }: { current: string; navigate: (r: Route) => void }) {
-  const tabs: { name: 'home' | 'rooms' | 'history' | 'profile'; icon: string; label: string }[] = [
+  const tabs: { name: 'home' | 'history' | 'profile'; icon: string; label: string }[] = [
     { name: 'home', icon: '🏠', label: 'Home' },
-    { name: 'rooms', icon: '🎫', label: 'Rooms' },
     { name: 'history', icon: '📜', label: 'History' },
     { name: 'profile', icon: '👤', label: 'Profile' },
   ];
 
   return (
-    <nav className="safe-bottom grid grid-cols-4 border-t border-black/10 bg-tg-secondary">
+    <nav className="safe-bottom grid grid-cols-3 border-t border-black/10 bg-tg-secondary">
       {tabs.map((t) => (
         <button
           key={t.name}

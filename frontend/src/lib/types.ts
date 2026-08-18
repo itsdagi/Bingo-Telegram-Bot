@@ -9,7 +9,8 @@ export type TransactionType =
 
 export interface User {
   id: string;
-  telegram_user_id: number | string;
+  telegram_user_id: number | string | null;
+  phone: string | null;
   username: string | null;
   first_name: string | null;
   last_name: string | null;

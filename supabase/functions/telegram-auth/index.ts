@@ -15,8 +15,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const initData = typeof body.initData === 'string' ? body.initData : '';
+    const rawPhone = typeof body.phone === 'string' ? body.phone.trim() : '';
 
     let tgUser: TelegramUser | null = null;
+    let isDev = false;
 
     if (initData.startsWith('dev:')) {
       if (!isDevAuthEnabled()) {
@@ -31,6 +33,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Invalid dev user id' }, 400);
       }
       tgUser = { id, first_name: 'Dev User', username: 'dev' };
+      isDev = true;
     } else if (initData) {
       const result = await verifyTelegramInitData(initData, botToken);
       if (!result.ok || !result.user) {
@@ -41,9 +44,16 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Missing initData' }, 401);
     }
 
+    // Phone is mandatory for real users (it is the primary authentication
+    // step). Dev logins may skip it.
+    if (!isDev && !rawPhone) {
+      return jsonResponse({ error: 'Phone number is required' }, 400);
+    }
+
     const supabase = createAdminClient();
-    const { data: user, error } = await supabase.rpc('upsert_telegram_user', {
+    const { data: user, error } = await supabase.rpc('upsert_user', {
       p_telegram_user_id: tgUser.id,
+      p_phone: rawPhone || null,
       p_username: tgUser.username ?? null,
       p_first_name: tgUser.first_name ?? null,
       p_last_name: tgUser.last_name ?? null,
