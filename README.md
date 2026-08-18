@@ -60,6 +60,7 @@ bingo/
    - `0002_cron.sql`
    - `0003_phone_auth_and_fixes.sql`
    - `0004_game_states_and_loop.sql`
+   - `0005_fix_rls_recursion.sql`
 4. In Edge Function secrets, add:
 
 ```
