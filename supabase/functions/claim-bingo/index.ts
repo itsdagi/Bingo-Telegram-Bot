@@ -2,7 +2,7 @@ import { handleCors, jsonResponse } from '../_shared/cors.ts';
 import { getUserIdFromRequest, getJwtSecret } from '../_shared/auth.ts';
 import { createAdminClient } from '../_shared/supabase.ts';
 
-const VALID_PATTERN = /^(ROW|COL)_[0-4]$|^DIAG_MAIN$|^DIAG_ANTI$/;
+const VALID_PATTERN = /^(ROW|COL)_[0-4]$|^DIAG_MAIN$|^DIAG_ANTI$|^FOUR_CORNERS$/;
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);

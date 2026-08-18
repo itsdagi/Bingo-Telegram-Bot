@@ -1,4 +1,4 @@
-export type GameStatus = 'WAITING' | 'STARTING' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+export type GameStatus = 'WAITING' | 'STARTING' | 'ACTIVE' | 'WON' | 'COMPLETED' | 'CANCELLED';
 export type GamePlayerStatus = 'JOINED' | 'LEFT' | 'WINNER' | 'LOST';
 export type TransactionType =
   | 'WELCOME_BONUS'
@@ -80,5 +80,7 @@ export interface GameResult {
   winner_id: string;
   winning_pattern: string;
   winning_numbers: number[];
+  winning_card?: number[];
+  winning_draw_order?: number;
   completed_at: string;
 }

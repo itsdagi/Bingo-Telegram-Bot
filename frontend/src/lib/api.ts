@@ -35,16 +35,12 @@ async function call<T>(path: string, body?: unknown, auth = true): Promise<ApiRe
   return { data: json as T };
 }
 
-export async function authenticate(phone?: string): Promise<ApiResult<User>> {
+export async function authenticate(): Promise<ApiResult<User>> {
   const initData = getAuthInitData();
   if (!initData) {
     return { error: 'No Telegram session available' };
   }
-  const res = await call<{ token: string; user: User }>(
-    'telegram-auth',
-    { initData, phone: phone ?? undefined },
-    false,
-  );
+  const res = await call<{ token: string; user: User }>('telegram-auth', { initData }, false);
   if (res.data) {
     setAuthToken(res.data.token);
     return { data: res.data.user };

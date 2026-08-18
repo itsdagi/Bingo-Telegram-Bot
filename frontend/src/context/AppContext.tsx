@@ -23,7 +23,7 @@ export type Route =
   | { name: 'profile' }
   | { name: 'game'; gameId: string };
 
-export type AuthScreen = 'none' | 'phone' | 'dev';
+export type AuthScreen = 'none' | 'dev';
 
 const USER_KEY = 'bingo_auth_user';
 
@@ -36,6 +36,11 @@ function readCachedUser(): User | null {
   }
 }
 
+function isTokenExpired(e: { code?: string; message?: string } | null | undefined): boolean {
+  if (!e) return false;
+  return e.code === 'PGRST301' || /jwt|token|expired/i.test(e.message ?? '');
+}
+
 interface AppContextValue {
   user: User | null;
   loading: boolean;
@@ -44,7 +49,6 @@ interface AppContextValue {
   route: Route;
   navigate: (route: Route) => void;
   refreshUser: () => Promise<void>;
-  loginWithPhone: (phone: string) => Promise<void>;
   devLogin: (id: string) => Promise<void>;
   signOut: () => void;
 }
@@ -69,32 +73,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const doAuth = useCallback(
-    async (phone?: string) => {
-      setLoading(true);
-      setError(null);
+  const doAuth = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-      if (!isSupabaseConfigured) {
-        setError(
-          'Missing Supabase configuration. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to frontend/.env, then restart the dev server.',
-        );
-        setLoading(false);
-        return;
-      }
-
-      const res = await authenticate(phone);
-      if (res.data) {
-        applyAuthSuccess(res.data);
-      } else {
-        setError(res.error ?? 'Authentication failed');
-        setAuthScreen(isTelegram() ? 'phone' : 'dev');
-      }
+    if (!isSupabaseConfigured) {
+      setError(
+        'Missing Supabase configuration. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to frontend/.env, then restart the dev server.',
+      );
       setLoading(false);
-    },
-    [applyAuthSuccess],
-  );
+      return;
+    }
 
-  // Boot: restore a cached session, otherwise choose the auth screen.
+    const res = await authenticate();
+    if (res.data) {
+      applyAuthSuccess(res.data);
+    } else {
+      setError(res.error ?? 'Authentication failed');
+      setAuthScreen(isTelegram() ? 'none' : 'dev');
+    }
+    setLoading(false);
+  }, [applyAuthSuccess]);
+
+  // Boot: restore a cached session (and validate it), otherwise auto-auth.
   useEffect(() => {
     initTelegram();
 
@@ -106,7 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAuthScreen('none');
       setLoading(false);
 
-      // Refresh balance/profile in the background.
+      // Validate the session and refresh the profile/balance in the background.
       void supabase
         .from('users')
         .select('*')
@@ -120,14 +121,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
             } catch {
               // ignore
             }
+          } else if (isTokenExpired(e)) {
+            // Session expired: re-authenticate automatically (Telegram).
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_KEY);
+            setUser(null);
+            if (isTelegram()) {
+              void doAuth();
+            } else {
+              setAuthScreen('dev');
+            }
           }
         });
       return;
     }
 
     if (isTelegram()) {
-      setAuthScreen('phone');
-      setLoading(false);
+      void doAuth();
       return;
     }
 
@@ -157,14 +167,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const loginWithPhone = useCallback(
-    async (phone: string) => {
-      setError(null);
-      await doAuth(phone);
-    },
-    [doAuth],
-  );
-
   const devLogin = useCallback(
     async (id: string) => {
       setDevUserId(id);
@@ -178,8 +180,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USER_KEY);
     setUser(null);
     setRoute({ name: 'home' });
-    setAuthScreen(isTelegram() ? 'phone' : 'dev');
-  }, []);
+    if (isTelegram()) {
+      void doAuth();
+    } else {
+      setAuthScreen('dev');
+    }
+  }, [doAuth]);
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -190,11 +196,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       route,
       navigate: setRoute,
       refreshUser,
-      loginWithPhone,
       devLogin,
       signOut,
     }),
-    [user, loading, error, authScreen, route, refreshUser, loginWithPhone, devLogin, signOut],
+    [user, loading, error, authScreen, route, refreshUser, devLogin, signOut],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

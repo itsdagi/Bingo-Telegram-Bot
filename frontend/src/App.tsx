@@ -3,13 +3,12 @@ import { useApp, type Route } from './context/AppContext';
 import { getWebApp, haptic } from './lib/telegram';
 import { joinRoom } from './lib/api';
 import { Home } from './pages/Home/Home';
-import { Auth } from './pages/Auth/Auth';
 import { Game } from './pages/Game/Game';
 import { History } from './pages/History/History';
 import { Profile } from './pages/Profile/Profile';
 
 export default function App() {
-  const { user, loading, error, authScreen, route, navigate, loginWithPhone, devLogin } = useApp();
+  const { user, loading, error, authScreen, route, navigate, devLogin } = useApp();
 
   // Deep link: t.me/Bot?startapp=room_CODE → auto-join.
   const handledDeepLink = useRef(false);
@@ -27,7 +26,6 @@ export default function App() {
 
   if (loading && authScreen === 'none') return <Splash />;
   if (authScreen === 'dev') return <DevLogin onLogin={devLogin} error={error} />;
-  if (authScreen === 'phone') return <Auth onLogin={loginWithPhone} error={error} />;
   if (error || !user) return <ErrorScreen message={error ?? 'Not signed in'} />;
 
   if (route.name === 'game') {

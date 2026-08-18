@@ -22,18 +22,19 @@ Telegram → Telegram Mini App → React + Vite → Vercel → Supabase
 ```
 Telegram Bot
     ↓
-Open Mini App
+Open Mini App (Telegram WebApp initData present)
     ↓
-Phone Authentication  (verified Telegram identity + phone, linked in `users`)
+Verify initData server-side (HMAC with TELEGRAM_BOT_TOKEN)
     ↓
-Verify / Create User (idempotent — no duplicate accounts)
+Create / find the account by telegram_user_id (idempotent — no duplicates)
     ↓
-Bingo Home
+Bingo Home (no separate login page)
 ```
 
 - The Mini App always runs inside Telegram, so `window.Telegram.WebApp.initData` is present and its HMAC is verified server-side with `TELEGRAM_BOT_TOKEN`.
-- The user then enters their phone number. The phone is stored in `users.phone` (unique) and linked to the same account as the Telegram identity.
-- Logging in again with the same phone **or** the same Telegram identity resolves to the same account — no duplicates.
+- `telegram_user_id` is the permanent account identity. The username, first name, last name and photo are stored when available.
+- A phone number is **not** required (Telegram Mini Apps do not expose it). If a phone is ever supplied it is stored in `users.phone`; an existing phone stays associated with the account.
+- The same Telegram identity always resolves to the same account — no duplicates.
 - `dev:<id>` authentication only works when the `DEV_AUTH_ENABLED=true` secret is set. It is disabled by default and must never be enabled in production.
 
 ## Project structure
@@ -58,6 +59,7 @@ bingo/
    - `0001_init.sql`
    - `0002_cron.sql`
    - `0003_phone_auth_and_fixes.sql`
+   - `0004_game_states_and_loop.sql`
 4. In Edge Function secrets, add:
 
 ```
@@ -133,10 +135,13 @@ The bot now replies to `/start` (or any message) with a welcome message and a
 ## Game rules
 
 - Every new user receives **1,000 Birr** (one-time `WELCOME_BONUS`).
-- Quick Play: entry **10 Birr**, 2–50 players, auto-starts at 2 players.
+- Quick Play: entry **10 Birr**, 2–50 players, auto-starts when 2 players join (a solo public game also auto-starts after 60s so it never stalls).
 - Winner takes the full pot (`entry_fee × players`).
 - Bingo card: 5×5, columns B(1–15) I(16–30) N(31–45) G(46–60) O(61–75), center FREE.
-- Supported patterns: horizontal, vertical, main diagonal, anti-diagonal.
+- Supported patterns: horizontal row, vertical column, main diagonal, anti-diagonal, four corners.
+- Numbers (1–75) are drawn server-side, one every 3 seconds, never repeated.
+- Bingo is evaluated server-side **after every draw** (continuous detection) and also on demand when the player presses BINGO.
+- A winner ends the game in state `WON`; drawing all 75 numbers with no winner ends the game in state `COMPLETED` (no winner).
 
 ## Dev mode (local testing without Telegram)
 

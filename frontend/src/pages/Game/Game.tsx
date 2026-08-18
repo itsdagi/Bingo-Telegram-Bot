@@ -265,8 +265,8 @@ export function Game({ gameId }: GamePageProps) {
     );
   }
 
-  // ----------------------------------------------------------------- COMPLETED
-  if (game.status === 'COMPLETED') {
+  // ---------------------------------------------------------------------- WON
+  if (game.status === 'WON') {
     const iWon = game.winner_id === user.id;
     const winner = playerRows.find((p) => p.status === 'WINNER');
     const prize = result ? game.entry_fee * players.length : 0;
@@ -277,14 +277,19 @@ export function Game({ gameId }: GamePageProps) {
           <div className="text-6xl">{iWon ? '🎉' : '🏁'}</div>
           <div className="text-center">
             <div className="text-2xl font-black text-tg-text">
-              {iWon ? 'BINGO! You won' : `${winner?.name ?? 'Someone'} won`}
+              {iWon ? 'BINGO! You won' : `🎉 BINGO! ${winner?.name ?? 'Someone'} won`}
             </div>
             {iWon && (
               <div className="mt-2 text-xl font-bold text-brand">+{formatBirr(prize)}</div>
             )}
             {result && (
               <div className="mt-2 text-sm text-tg-hint">
-                Winning line · {result.winning_numbers.join(' · ')}
+                Winning pattern · {patternLabel(result.winning_pattern)}
+              </div>
+            )}
+            {result && (
+              <div className="mt-1 text-sm text-tg-hint">
+                {result.winning_numbers.join(' · ')}
               </div>
             )}
           </div>
@@ -294,6 +299,49 @@ export function Game({ gameId }: GamePageProps) {
             className="mt-4 w-full rounded-2xl bg-tg-button px-6 py-4 text-base font-extrabold text-tg-button-text active:scale-[0.98]"
           >
             PLAY AGAIN
+          </button>
+        </div>
+      </Centered>
+    );
+  }
+
+  // -------------------------------------------------------------- COMPLETED
+  if (game.status === 'COMPLETED') {
+    return (
+      <Centered>
+        <div className="flex flex-col items-center gap-4 animate-float-in">
+          <div className="text-6xl">🏁</div>
+          <div className="text-center">
+            <div className="text-2xl font-black text-tg-text">GAME OVER</div>
+            <div className="mt-2 text-sm text-tg-hint">No Bingo was achieved. No winner.</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate({ name: 'home' })}
+            className="mt-4 w-full rounded-2xl bg-tg-button px-6 py-4 text-base font-extrabold text-tg-button-text active:scale-[0.98]"
+          >
+            PLAY AGAIN
+          </button>
+        </div>
+      </Centered>
+    );
+  }
+
+  // --------------------------------------------------------------- CANCELLED
+  if (game.status === 'CANCELLED') {
+    return (
+      <Centered>
+        <div className="flex flex-col items-center gap-4 animate-float-in">
+          <div className="text-6xl">🚫</div>
+          <div className="text-center">
+            <div className="text-2xl font-black text-tg-text">Game cancelled</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate({ name: 'home' })}
+            className="mt-4 w-full rounded-2xl bg-tg-button px-6 py-4 text-base font-extrabold text-tg-button-text active:scale-[0.98]"
+          >
+            BACK TO HOME
           </button>
         </div>
       </Centered>
@@ -387,4 +435,12 @@ function Centered({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+function patternLabel(pattern: string): string {
+  if (pattern.startsWith('ROW_')) return 'Horizontal';
+  if (pattern.startsWith('COL_')) return 'Vertical';
+  if (pattern === 'DIAG_MAIN' || pattern === 'DIAG_ANTI') return 'Diagonal';
+  if (pattern === 'FOUR_CORNERS') return 'Four Corners';
+  return pattern;
 }

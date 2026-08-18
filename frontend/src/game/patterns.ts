@@ -3,7 +3,8 @@ import { isFree } from './bingo';
 export type PatternKey =
   | 'ROW_0' | 'ROW_1' | 'ROW_2' | 'ROW_3' | 'ROW_4'
   | 'COL_0' | 'COL_1' | 'COL_2' | 'COL_3' | 'COL_4'
-  | 'DIAG_MAIN' | 'DIAG_ANTI';
+  | 'DIAG_MAIN' | 'DIAG_ANTI'
+  | 'FOUR_CORNERS';
 
 export interface Pattern {
   key: PatternKey;
@@ -30,6 +31,7 @@ function buildPatterns(): Pattern[] {
   }
   patterns.push({ key: 'DIAG_MAIN', label: 'Diagonal', cells: [0, 6, 12, 18, 24] });
   patterns.push({ key: 'DIAG_ANTI', label: 'Diagonal', cells: [4, 8, 12, 16, 20] });
+  patterns.push({ key: 'FOUR_CORNERS', label: 'Four Corners', cells: [0, 4, 20, 24] });
 
   return patterns;
 }
